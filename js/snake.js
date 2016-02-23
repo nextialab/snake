@@ -53,8 +53,7 @@ function initGrid() {
 
 var game = new Phaser.Game(800, 600, Phaser.AUTO, 'game', {
     preload: preload,
-    create: create,
-    update: update
+    create: create
 });
 
 function preload() {
@@ -81,6 +80,7 @@ function create() {
     cursors = game.input.keyboard.createCursorKeys();
     initGrid();
     draw();
+    game.time.events.loop(100, update, this);
 }
 
 function update() {
@@ -94,7 +94,7 @@ function update() {
     } else if (cursors.down.isDown && direction != _UP_) {
         direction = _DOWN_;
     }
-    if (time % 10 == 0) {
+    if (time % 2 == 0) {
         // update grid from tail
         grid[tail.y][tail.x] = 0;
         // update head
