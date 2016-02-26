@@ -4,27 +4,42 @@ var _UP_ = 1;
 var _LEFT_ = 2;
 var _DOWN_ = 3;
 
+var _BLACK_ = 0;
+var _WHITE_ = 1;
+var _RED_ = 2;
+
 var grid = [];
+var columns = 40;
+var rows = 30;
 var edge = 20;
-var playing = false;
-var speed = 5;
+var playing = true;
+var speed = 10;
 var deltaSpeed = 5;
 var time = 0;
+var nextPush = 5;
+var deltaPush = 5;
 var direction = _RIGHT_;
 var cursors;
-var graphics;
+var points = 0;
 
 function snakeBody(x, y) {
     return {
         x: x,
         y: y,
         next: null,
-        update: function (x, y) {
+        update: function (newX, newY) {
             if (this.next != null) {
                 this.next.update(this.x, this.y);
             }
-            this.x = x;
-            this.y = y;
+            this.x = newX;
+            this.y = newY;
+        },
+        print: function () {
+            var string = "(" + this.x + ", " + this.y + ")";
+            if (this.next != null) {
+                string += ", " + this.next.print()
+            }
+            return string;
         }
     };
 }
@@ -38,53 +53,46 @@ function initGrid() {
     for (var i = 0; i < 30; ++i) {
         var row = [];
         for (var j = 0; j < 40; ++j) {
+            var cell = game.add.sprite(j * edge, i * edge, 'tiles', _WHITE_);
             if (i == 0 || j == 0 || i == 29 || j == 39) {
-                row[j] = 1;
-            } else {
-                row[j] = 0;
+                cell.frame = _BLACK_;
             }
+            row[j] = cell;
         }
         grid[i] = row;
     }
-    grid[10][10] = 1;
-    grid[10][9] = 1;
-    grid[10][8] = 1;
+    grid[10][10].frame = _BLACK_;
+    grid[10][9].frame = _BLACK_;
+    grid[10][8].frame = _BLACK_;
+    addNextTarget();
+}
+
+function addNextTarget() {
+    var posX, posY;
+    do {
+        posX = Math.floor(Math.random() * columns);
+        posY = Math.floor(Math.random() * rows);
+    } while (grid[posY][posX].frame == 0);
+    grid[posY][posX].frame = _RED_;
 }
 
 var game = new Phaser.Game(800, 600, Phaser.AUTO, 'game', {
     preload: preload,
-    create: create
+    create: create,
+    update: update
 });
 
 function preload() {
-
-}
-
-function draw() {
-    graphics.beginFill(0xFFFFFF, 1);
-    graphics.drawRect(0, 0, 800, 600);
-    graphics.endFill();
-    graphics.beginFill(0x000000, 1);
-    for (var i = 0; i < 30; ++i) {
-        for (var j = 0; j < 40; ++j) {
-            if (grid[i][j] == 1) {
-                graphics.drawRect(edge * j, edge * i, 20, 20);
-            }
-        }
-    }
-    graphics.endFill();
+    game.load.spritesheet('tiles', 'assets/spritesheet.png', 20, 20);
 }
 
 function create() {
-    graphics = game.add.graphics(0, 0);
-    cursors = game.input.keyboard.createCursorKeys();
     initGrid();
-    draw();
-    game.time.events.loop(100, update, this);
+    cursors = game.input.keyboard.createCursorKeys();
+    game.time.events.loop(20, updateGrid, this);
 }
 
 function update() {
-    time++;
     if (cursors.left.isDown && direction != _RIGHT_) {
         direction = _LEFT_;
     } else if (cursors.up.isDown && direction != _DOWN_) {
@@ -94,9 +102,14 @@ function update() {
     } else if (cursors.down.isDown && direction != _UP_) {
         direction = _DOWN_;
     }
-    if (time % 2 == 0) {
+}
+
+function updateGrid() {
+    if (!playing) return;
+    time++;
+    if (time % speed == 0) {
         // update grid from tail
-        grid[tail.y][tail.x] = 0;
+        grid[tail.y][tail.x].frame = _WHITE_;
         // update head
         var x = snake.x;
         var y = snake.y;
@@ -114,9 +127,27 @@ function update() {
                 y++;
                 break;
         }
-        snake.update(x, y);
-        // update grid with new head
-        grid[snake.y][snake.x] = 1;
-        draw();
+        if (grid[y][x].frame == _BLACK_) {
+            document.getElementById('lose').style.display = 'block';
+            playing = false;
+        } else if (grid[y][x].frame == _RED_) {
+            var head = snakeBody(x, y);
+            head.next = snake;
+            snake = head;
+            grid[y][x].frame = _BLACK_;
+            addNextTarget();
+            points++;
+            if (points >= nextPush) {
+                if (speed > 1) {
+                    speed--;
+                }
+                nextPush *= 2;
+            }
+            document.getElementById('points').innerHTML = points;
+        } else {
+            snake.update(x, y);
+            // update grid with new head
+            grid[snake.y][snake.x].frame = _BLACK_;
+        }
     }
 }
